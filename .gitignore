@@ -1,0 +1,15 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# macOS
+.DS_Store
+
+# Extracted features and downloads (re-create them with the scripts in kaggle/)
+feats*/
+*.zip
+
+# Scratch output of ad-hoc runs and local backups (the published results are in results/)
+/results.jsonl
+*.backup.jsonl
