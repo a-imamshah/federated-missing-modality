@@ -77,9 +77,31 @@ def evaluate(model, val, test, val_masks, test_masks):
     return results
 
 
+def evaluate_average(models, val, test, val_masks, test_masks):
+    """For methods that keep one model per client: evaluate every model and average each number over the clients."""
+    all_results = [evaluate(m, val, test, val_masks, test_masks) for m in models]
+    return {sc: {k: sum(r[sc][k] for r in all_results) / len(all_results) for k in all_results[0][sc]}
+            for sc in all_results[0]}
+
+
 def bytes_per_round(model, num_clients):
     """Every client downloads and uploads all trainable weights (float32, 4 bytes each) once per round."""
     return sum(p.numel() for p in model.parameters()) * 4 * 2 * num_clients
+
+
+def traffic_per_round(model, clients, participation, partial_upload=False):
+    """Expected bytes per round (float32). Every participating client downloads the whole model. It uploads the
+    whole model, or with partial_upload only the parts it trains: a client without text does not send the text adapter."""
+    k = max(1, round(participation * len(clients)))
+    sizes = {g: sum(p.numel() for n, p in model.named_parameters() if n.startswith(g))
+             for g in ("img_adapter.", "txt_adapter.")}
+    total = sum(p.numel() for p in model.parameters())
+    def upload(c):
+        if not partial_upload:
+            return total
+        return total - (0 if c.has_img.any() else sizes["img_adapter."]) - (0 if c.has_txt.any() else sizes["txt_adapter."])
+    mean_upload = sum(upload(c) for c in clients) / len(clients)
+    return int(round((total + mean_upload) * 4 * k))
 
 
 def print_results(results):

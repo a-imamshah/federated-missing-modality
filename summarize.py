@@ -9,7 +9,7 @@ import sys
 from collections import defaultdict
 import numpy as np
 
-SETTING = ["feats", "missing", "eta", "clients", "participation", "alpha", "modality_dropout", "rounds", "framework"]
+SETTING = ["feats", "missing", "eta", "shares", "aggregation", "method", "mu", "impute", "clients", "participation", "alpha", "modality_dropout", "rounds", "framework"]
 SCENARIOS = ["full", "image_only", "text_only", "missing", "miss_both"]
 
 groups, seen = defaultdict(list), set()
@@ -18,7 +18,8 @@ for path in sys.argv[1:] or ["results/paper.jsonl"]:
         run = json.loads(line)
         if "f1_micro" not in run["results"]["full"]:      # skip old runs that stored "accuracy"
             continue
-        args = {**run["args"], "framework": run["args"].get("framework", "simulator")}
+        args = {"framework": "simulator", "shares": "-", "aggregation": "fedavg", "method": "fedavg", "mu": 0.0, "impute": False, **run["args"]}
+        args["shares"] = args["shares"] or "-"
         key = tuple(args.get(k) for k in SETTING)
         if (key, args["seed"]) in seen:                    # the same run listed in two files counts once
             continue

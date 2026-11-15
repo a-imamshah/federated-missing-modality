@@ -74,3 +74,40 @@ def make_scenarios(n, eta, mode):
     if mode != "both":
         scenarios["miss_both"] = make_missing(n, eta, "both")
     return scenarios
+
+
+def _counts(shares, n):
+    """Split n items among the entries of shares (relative weights); the counts add up to n."""
+    w = torch.tensor(shares, dtype=torch.float64)
+    w = w / w.sum() * n
+    c = w.floor().long()
+    for i in (w - c).argsort(descending=True)[:n - int(c.sum())]:
+        c[i] += 1
+    return c.tolist()
+
+
+def apply_client_types(clients, shares):
+    """Give every client one fixed modality set. shares = relative weights of (image-only, text-only, full) clients,
+    for example (1, 1, 1): 20 clients become 7 / 7 / 6. An image-only client has no text for any of its samples."""
+    n_img_only, n_txt_only, _ = _counts(shares, len(clients))
+    typed = []
+    for i, c in enumerate(clients):
+        if i < n_img_only:
+            c = c._replace(has_txt=torch.zeros_like(c.has_txt))
+        elif i < n_img_only + n_txt_only:
+            c = c._replace(has_img=torch.zeros_like(c.has_img))
+        typed.append(c)
+    return typed
+
+
+def make_scenarios_by_shares(n, shares):
+    """Test scenarios when clients have fixed types. "missing": every sample is image-only, text-only or full
+    in the same proportions as the client types."""
+    ones, zeros = torch.ones(n), torch.zeros(n)
+    n_img_only, n_txt_only, _ = _counts(shares, n)
+    order = torch.randperm(n)
+    has_img, has_txt = torch.ones(n), torch.ones(n)
+    has_txt[order[:n_img_only]] = 0
+    has_img[order[n_img_only:n_img_only + n_txt_only]] = 0
+    return {"full": (ones, ones), "image_only": (ones, zeros), "text_only": (zeros, ones),
+            "missing": (has_img, has_txt)}
