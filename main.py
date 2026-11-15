@@ -32,6 +32,9 @@ parser.add_argument("--mu", type=float, default=0.0, help="FedProx penalty (0 = 
 parser.add_argument("--impute", action="store_true", help="baseline: predict the missing CLIP vector from the present one")
 parser.add_argument("--temp", type=float, default=0.1, help="fedmsplit: softmax temperature of the client similarity")
 parser.add_argument("--gamma", type=int, default=1, help="mfedmc: number of encoders each selected client uploads")
+parser.add_argument("--compress", choices=["none", "int8", "topk"], default="none", help="compress the clients' uploads (global-model methods only)")
+parser.add_argument("--topk", type=float, default=0.1, help="topk: share of the update entries that is sent")
+parser.add_argument("--error_feedback", action="store_true", help="add the part of an update that was not sent to the next update")
 parser.add_argument("--modality_dropout", type=float, default=0.0, help="0 = plain FedAvg with zero-masking")
 parser.add_argument("--seed", type=int, default=0)
 parser.add_argument("--eval_every", type=int, default=5)
@@ -60,6 +63,8 @@ else:
 num_classes = train.y.shape[1] if train.y.ndim == 2 else int(train.y.max()) + 1
 model = Net(dim=train.img.shape[1], num_classes=num_classes, impute=args.impute)
 strategy = make_strategy(model, clients, args)     # None: one global model
+if strategy and args.compress != "none":
+    parser.error("--compress works with --method fedavg only")
 
 train_seconds = 0.0
 history = []
@@ -82,7 +87,8 @@ print_results(results)
 if strategy:
     bytes_round = strategy.bytes_per_round(args.rounds)
 else:
-    bytes_round = traffic_per_round(model, clients, args.participation, partial_upload=args.aggregation == "aware")
+    bytes_round = traffic_per_round(model, clients, args.participation, partial_upload=args.aggregation == "aware",
+                                      compress=args.compress, topk=args.topk)
 seconds_round = train_seconds / args.rounds
 print(f"\nbytes per round: {bytes_round:,}   seconds per round: {seconds_round:.2f}")
 with open(args.out, "a") as f:

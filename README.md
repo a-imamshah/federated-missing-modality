@@ -13,6 +13,27 @@ Training runs in a small sequential simulator written for this project. To confi
 same experiments were repeated on the [Flower](https://flower.ai) federated learning framework
 (see [Flower version](#flower-version)); the two give equivalent results.
 
+Beyond the replication, the project studies four questions: what changes when clients have a **fixed modality set**
+(image-only, text-only or full), whether any known federated method beats plain FedAvg with zero-masking, how little
+**traffic** is needed for the same accuracy, and how well **calibrated** the models are when an input is missing.
+
+## Findings in brief
+
+Mean of 3 seeds. Food-101 is accuracy, MM-IMDb is F1-macro (details in [Results](#results)).
+
+1. **Federation costs little with frozen CLIP features.** Food-101 reaches 98.3% with 1 client (centralized) and with 20
+   clients. On MM-IMDb federation gains 29 points over training alone (68.4 against 39.3).
+2. **Fixed client types.** With no full client at all (half image-only, half text-only) the model still reaches 97.8% on
+   full data. Image-only accuracy is 4 to 5 points higher than when every client has both inputs (88.7 against 84.7).
+3. **Nothing beats plain FedAvg with zero-masking on accuracy.** FedProx, FedMSplit-style, modality dropout and
+   imputation are within the seed spread; local-only and the MFedMC-style selective upload are much worse.
+4. **Traffic can be cut about 10x at no accuracy cost** by letting 10% of the clients take part in each round, or by
+   training 10 local epochs per round (25 instead of 250 rounds). int8 uploads give 1.6x, top-k uploads work only with
+   error feedback; downloads are not compressed and cap compression at about 2x.
+5. **Calibration.** The models are overconfident (temperature 2 to 5) and missing inputs make it worse (Food-101 ECE 0.017
+   with both inputs, 0.090 with the image only). Temperature scaling fixes most of it.
+6. **The simulator is correct.** Flower reproduces it within the seed spread.
+
 ## Method
 
 - **Features.** Frozen CLIP image and text encoders. Features are L2-normalized and stored as float16 `.npy` files.
@@ -28,6 +49,20 @@ same experiments were repeated on the [Flower](https://flower.ai) federated lear
   (equals accuracy for single-label data), F1-macro, and ECE before and after temperature scaling (fitted per scenario
   on a 10% validation split of train). Bytes per round are computed as parameters x 4 bytes x 2 directions x clients.
 
+- **Fixed client types** (`data.py`, `--shares`). Instead of dropping inputs per sample, every client gets one modality
+  set: image-only, text-only or full, in the given proportions (for example 1,1,1 gives 7 / 7 / 6 of 20 clients).
+  Test scenarios stay the same; `missing` then mixes the three types in the same proportions.
+- **Modality-aware averaging** (`federated.py`, `--aggregation aware`). The image adapter is averaged only over samples
+  that have an image, the text adapter only over samples with text, the rest over all samples. A client does not upload an
+  adapter it cannot train, which also reduces traffic.
+- **Baselines** (`baselines.py`, `federated.py`, `model.py`). FedProx (`--mu`), modality dropout, imputation of the missing
+  CLIP vector (`--impute`), local-only, a FedMSplit-style similarity-weighted block average and an MFedMC-style selective
+  upload (`--method`). The last two are simplified versions of the methods' main mechanism on this small model, not the
+  original implementations.
+- **Compressed uploads** (`federated.py`, `--compress`). int8 (every tensor rounded to 255 levels) or top-k (only the
+  largest share of the update is sent), optionally with error feedback (the part not sent is added to the next update).
+  Downloads stay uncompressed.
+
 Single-label data (class indices, shape `[N]`) uses softmax and cross-entropy. Multi-label data (multi-hot matrix, shape
 `[N, C]`) uses sigmoid and binary cross-entropy with a 0.5 threshold. The mode is read from the labels.
 
@@ -36,13 +71,18 @@ Single-label data (class indices, shape `[N]`) uses softmax and cross-entropy. M
 ```
 main.py                    run one experiment
 data.py  model.py  federated.py  utils.py
-summarize.py               average results over seeds into a table
-check_simulator.py         sanity checks: clients share no data or weights, FedAvg is a weighted mean
+baselines.py               local-only, FedMSplit-style and MFedMC-style baselines
+summarize.py               average results over seeds into a table (also traffic to a target accuracy)
+check_simulator.py         sanity checks: clients share no data or weights, FedAvg is a weighted mean, client types,
+                           FedProx, masked inputs, per-client baselines, compression
 run_paper_experiments.sh   experiments from the Fed-PRIME paper
 run_client_experiments.sh  federated learning vs number of clients
+run_client_type_experiments.sh   fixed client types
+run_baseline_experiments.sh      baselines on both datasets
+run_communication_experiments.sh compression, local epochs, participation
 flower/                    the same experiments on Flower, to confirm the simulator is equivalent (own virtual environment, see below)
 kaggle/                    scripts that extract the CLIP features (run on Kaggle, GPU + Internet)
-results/                   finished runs: paper.jsonl, clients.jsonl (one JSON line per run)
+results/                   finished runs, one JSON line per run: paper, clients, flower, client_types, baselines, communication
 ```
 
 ## Installation
@@ -99,6 +139,14 @@ python main.py --rounds 2 --eval_every 1        # quick check that everything ru
 | `--eta` | 0.7 | Fraction of training samples with a missing input |
 | `--missing` | `both` | `image`, `text` or `both` |
 | `--modality_dropout` | 0 | 0 = plain FedAvg with zero-masking |
+| `--shares` | none | Fixed client types: relative weights of image-only,text-only,full clients, e.g. `1,1,1`. `--eta` and `--missing` are then ignored |
+| `--aggregation` | `fedavg` | `aware`: modality-aware averaging with partial uploads |
+| `--method` | `fedavg` | `local`, `fedmsplit` (similarity-weighted blocks, uses `--mu` and `--temp`) or `mfedmc` (uses `--gamma`, `--participation`) |
+| `--mu` | 0 | FedProx penalty (0 = off) |
+| `--impute` | off | Predict the missing CLIP vector from the present one |
+| `--temp`, `--gamma` | 0.1, 1 | FedMSplit-style softmax temperature; number of encoders an MFedMC-style client uploads |
+| `--compress` | `none` | `int8` or `topk` for the clients' uploads (global-model methods only) |
+| `--topk`, `--error_feedback` | 0.1, off | Share of the update that is sent; carry the unsent part to the next update |
 | `--lr`, `--batch_size` | 1e-3, 64 | Adam learning rate and batch size |
 | `--seed` | 0 | Random seed |
 | `--eval_every` | 5 | Evaluate every this many rounds |
@@ -109,23 +157,32 @@ Each run prints a table per scenario and appends its settings, results and evalu
 ## Experiments
 
 ```
-bash run_paper_experiments.sh table1|eta|noniid|scale   # then: python summarize.py results/paper.jsonl
-bash run_client_experiments.sh                          # then: python summarize.py results/clients.jsonl
+bash run_paper_experiments.sh table1|eta|noniid|scale        # then: python summarize.py results/paper.jsonl
+bash run_client_experiments.sh                               # then: python summarize.py results/clients.jsonl
+bash run_client_type_experiments.sh baselines|aggregation|shares|imbalance|all
+bash run_baseline_experiments.sh per-sample|types|all
+bash run_communication_experiments.sh reference|compression|combined|participation|epochs|all
+python summarize.py results/client_types.jsonl               # same for baselines.jsonl, communication.jsonl
 ```
 
-| Experiment | Settings | Status |
-|---|---|---|
-| `table1` | 2 datasets x 3 missing patterns, eta 0.7, 3 seeds, 250 rounds | done |
-| `eta` | Food-101, missing `both`, eta 0 to 1 | done |
-| client sweep | 1 to 100 clients, both datasets, eta 0 and 0.7 | done |
-| `noniid` | Food-101, Dirichlet alpha 0.1 | not run |
-| `scale` | 100 clients, 10% to 50% participation | not run |
-| modality dropout | `--modality_dropout 0.3` against plain zero-masking | not run |
-| 23-genre multi-label | `--feats feats_imdb23` | implemented, not run on real features |
-| Flower version | `table1` on Flower, to check the simulator | done |
+The last three scripts skip runs that are already finished, so after an interruption the same command continues where it
+stopped. `summarize.py` hides setting columns that are equal in every row and, for runs with history, reports the
+traffic needed to reach 98% (`--target`) of plain FedAvg's final `missing` score.
 
-`results/paper.jsonl` holds 33 runs and `results/clients.jsonl` 84 runs. `summarize.py` reports F1-macro for MM-IMDb and
-F1-micro for Food-101, as the paper does, and accepts several result files.
+| Experiment | Settings | Runs | Status |
+|---|---|---|---|
+| `table1` | 2 datasets x 3 missing patterns, eta 0.7 | 33 with `eta` (`paper.jsonl`) | done |
+| `eta` | Food-101, missing `both`, eta 0 to 1 | in `paper.jsonl` | done |
+| client sweep | 1 to 100 clients, both datasets, eta 0 and 0.7 | 84 | done |
+| client types | centralized and all-full baselines, thirds with plain and modality-aware averaging, share of full clients 0 to 100% | 42 | done (`imbalance` not run, MM-IMDb only for thirds) |
+| baselines | 8 methods x 2 datasets x per-sample and thirds settings | 102 | done |
+| communication | compression, local epochs, participation, combined, both datasets and settings | 180 | done |
+| Flower version | simulator check on `table1`; other modes also run | 90 | `table1` and `eta` compared |
+| `noniid`, `scale` | Food-101 Dirichlet alpha 0.1; 100 clients with 10 to 50% participation | | not run in the simulator (Flower only) |
+| modality dropout alone, 23-genre multi-label | `--modality_dropout 0.3`, `--feats feats_imdb23` | | dropout in the baselines; 23-genre not run on real features |
+
+All settings have 3 seeds. `summarize.py` reports F1-macro for MM-IMDb and F1-micro for Food-101, as the paper does, and
+accepts several result files.
 
 ## Flower version
 
@@ -222,6 +279,92 @@ pattern (which input was dropped); columns are the test scenario. Fed-PRIME valu
 On Food-101 the number of clients changes only how fast training converges. On MM-IMDb, 50 and 100 clients are still
 improving at round 250, because each client takes few gradient steps per round.
 
+### Fixed client types
+
+20 clients, 250 rounds, Food-101, plain FedAvg. Share of full clients; the rest is split equally between image-only and
+text-only clients (the last row has no missing data).
+
+| Full clients | Full | Image only | Text only |
+|---|---|---|---|
+| 0% | 97.8 | 88.7 | 91.7 |
+| 10% | 98.0 | 89.2 | 91.6 |
+| 33% | 98.0 | 88.4 | 91.5 |
+| 67% | 98.4 | 87.7 | 91.6 |
+| 100% | 98.2 | 84.7 | 90.9 |
+
+The full-data score barely depends on the share, and unimodal clients improve the unimodal scores. Modality-aware
+averaging gives the same accuracy as plain FedAvg (thirds, Food-101 full / missing: 97.8 / 92.0 against 98.0 / 92.2;
+MM-IMDb 61.7 / 56.0 against 63.0 / 55.7) and saves 4 to 12% of the traffic (154.0 against 168.7 MB per round for thirds).
+The `missing` column is not comparable between rows, since it mixes the client types of each row. MM-IMDb with fixed
+client types scores lower than with per-sample missingness (63.0 against 68.4 full), probably because the complete
+samples sit on only a few clients; this was not tested.
+
+### Baselines
+
+20 clients, 250 rounds, 3 seeds, Full / `missing` scores. Per-sample: eta 0.7, pattern `both`. Thirds: fixed client types.
+
+| Method | Food-101 per-sample | MM-IMDb per-sample | Food-101 thirds | MM-IMDb thirds | MB per round |
+|---|---|---|---|---|---|
+| FedAvg, zero-masking | 98.2 / 92.8 | 68.4 / 59.0 | 98.0 / 92.2 | 63.0 / 55.7 | 168.7 |
+| Modality dropout 0.3 | 98.1 / 93.1 | 68.2 / 58.8 | 98.0 / 92.5 | 62.8 / 58.0 | 168.7 |
+| Imputation | 98.4 / 93.1 | 67.7 / 55.0 | 98.4 / 92.4 | 64.9 / 58.3 | 252.7 |
+| FedProx, mu 0.01 | 98.3 / 92.8 | 67.9 / 58.8 | 98.1 / 92.2 | 62.6 / 55.6 | 168.7 |
+| FedProx, mu 0.1 | 98.4 / 93.0 | 63.0 / 55.1 | 98.4 / 92.3 | 59.3 / 52.8 | 168.7 |
+| FedMSplit-style | 98.3 / 92.8 | 67.7 / 58.2 | 98.0 / 92.0 | 62.5 / 56.2 | 168.7 / 154.0 (thirds) |
+| MFedMC-style | 96.4 / 89.7 | 50.5 / 44.4 | 91.6 / 76.2 | 47.8 / 38.6 | 52.5 / 37.8 (thirds) |
+| Local only | 96.7 / 89.5 | 39.3 / 35.6 | 90.3 / 69.8 | 39.5 / 30.8 | 0 |
+
+Every global-model method is within the seed spread (1 to 3 points on MM-IMDb) of plain FedAvg, except FedProx with mu 0.1
+(5 points worse on MM-IMDb) and imputation (MM-IMDb text-only 51.6 against 59.7, and 50% more traffic). The MFedMC-style
+baseline saves 69 to 78% of the traffic but loses 2 to 18 points. Hyperparameters were not tuned (two values of mu, one
+temperature, gamma 1 with half of the clients).
+
+### Communication
+
+Per-sample setting (eta 0.7, 20 clients). Scores are Full / `missing`. "MB to target" is the traffic until a run reaches 98%
+of plain FedAvg's final `missing` score and "x" the ratio to plain FedAvg; MM-IMDb values are rounded because the target was
+reached in only 2 of 3 seeds in some rows and Food-101 is evaluated every 5 rounds.
+
+| Method | Food-101 | MM-IMDb | MB per round | MB to target, Food-101 (x) | MB to target, MM-IMDb (x) |
+|---|---|---|---|---|---|
+| Plain FedAvg | 98.2 / 92.8 | 68.4 / 59.0 | 168.7 | 1,687 (1.0) | 27,410 (1.0) |
+| 10% of clients per round | 97.7 / 91.9 | 67.9 / 58.8 | 16.9 | 225 (7.5) | 2,910 (9.4) |
+| 30% of clients | 97.8 / 92.5 | 68.0 / 59.3 | 50.6 | 590 (2.9) | 8,687 (3.2) |
+| 5 local epochs, 50 rounds | 98.4 / 93.1 | 69.1 / 59.6 | 168.7 | 843 (2.0) | 6,185 (4.4) |
+| 10 local epochs, 25 rounds | 98.6 / 93.1 | 67.8 / 58.9 | 168.7 | 843 (2.0) | 2,530 (10.8) |
+| int8 uploads | 98.2 / 92.8 | 68.4 / 59.0 | 105.4 | 1,054 (1.6) | 17,131 (1.6) |
+| top-10%, error feedback | 98.2 / 92.8 | 68.6 / 59.2 | 101.2 | 1,518 (1.1) | 16,952 (1.6) |
+| top-1%, error feedback | 98.4 / 93.0 | 68.2 / 58.6 | 86.0 | 3,011 (0.6) | 19,069 (1.4) |
+| top-1%, no error feedback | 95.7 / 88.7 | 7.9 / 7.9 | 86.0 | not reached | not reached |
+
+Taking part less often and training longer between uploads saves the most traffic at no measurable accuracy cost. int8
+and top-k with error feedback match FedAvg's accuracy: an upload is 4x (int8) and about 50x (top-1%) smaller, but
+the download (half of the traffic) is not compressed, so the total drops by at most 2x. Top-k without error feedback
+fails, on MM-IMDb it collapses to one class. With fixed client types the results are the same; modality-aware averaging
+plus int8 plus 2 local epochs reaches 3.0x (Food-101) and 4.7x (MM-IMDb) with unchanged accuracy.
+
+### Calibration
+
+ECE before and after temperature scaling and the fitted temperature T (T above 1 means overconfident), per-sample
+setting, pattern `both`, 20 clients, 250 rounds.
+
+| Dataset | Scenario | ECE before | ECE after | T |
+|---|---|---|---|---|
+| Food-101 | full | 0.017 | 0.008 | 4.8 |
+| Food-101 | image only | 0.090 | 0.020 | 3.8 |
+| Food-101 | text only | 0.064 | 0.019 | 5.5 |
+| Food-101 | missing | 0.057 | 0.017 | 4.4 |
+| MM-IMDb | full | 0.159 | 0.039 | 4.0 |
+| MM-IMDb | image only | 0.214 | 0.042 | 2.8 |
+| MM-IMDb | text only | 0.177 | 0.058 | 2.7 |
+| MM-IMDb | missing | 0.180 | 0.056 | 3.1 |
+
+Missing inputs make calibration worse (Food-101 ECE grows from 0.015 at eta 0 to 0.076 at eta 1 for `missing`), and the best
+temperature differs between scenarios, so one global temperature would leave residual error. More clients give better
+calibration (Food-101 full ECE 0.023 with 1 client, 0.008 with 100). The temperatures of the local-only baseline
+(thousands) are an artefact of near-constant outputs. These numbers are from the saved runs; no calibration method has been
+tested yet.
+
 ## Differences from Fed-PRIME
 
 | | Fed-PRIME | This project |
@@ -243,6 +386,13 @@ ablations, so the reasons for the higher scores (most likely the CLIP features) 
 - **MM-IMDb noise.** The rarest genres have 12 to 56 test samples, so F1-macro varies by 1 to 4 points between seeds.
 - **Simulated federation.** Clients run one after another in one process, as in the paper's easyFL-based code. Traffic is
   computed, not measured.
+- **Few seeds.** Everything uses 3 seeds and no significance tests; differences below about 1 point on Food-101 and 3 points
+  on MM-IMDb are not distinguishable from noise. Food-101 is nearly saturated and separates methods poorly; MM-IMDb is the
+  more informative dataset.
+- **Simplified baselines.** The FedMSplit- and MFedMC-style baselines keep only the main mechanism and were not tuned; they
+  are not reproductions of the published methods.
+- **Traffic accounting.** Traffic is computed from parameter counts (int8: 1 byte per weight; top-k: 8 bytes per kept entry).
+  Downloads are uncompressed. The target-based ratios depend on the evaluation interval and on the chosen 98% target.
 - **Spread.** `summarize.py` reports the population standard deviation over seeds (`ddof=0`), which understates the sample
   standard deviation for 3 seeds.
 
@@ -250,6 +400,9 @@ ablations, so the reasons for the higher scores (most likely the CLIP features) 
 
 - Phung et al., [Federated Prompt-Tuning with Heterogeneous and Incomplete Multimodal Client Data](https://arxiv.org/html/2602.07081), ICCV 2025 (data protocol and reference results).
 - Lee et al., Multimodal Prompting with Missing Modalities for Visual Recognition, CVPR 2023 ([missing_aware_prompts](https://github.com/YiLunLee/missing_aware_prompts), data splits).
+- Methods adapted as baselines or levers: FedAvg (McMahan et al., 2017), FedProx (Li et al., MLSys 2020), FedMSplit (KDD 2022),
+  MFedMC ([arXiv 2401.16685](https://arxiv.org/pdf/2401.16685)), error-feedback compression (Stich et al., 2018). Related work on
+  client-type heterogeneity with frozen CLIP: FedTaste ([arXiv 2607.23245](https://arxiv.org/pdf/2607.23245)).
 - Radford et al., Learning Transferable Visual Models From Natural Language Supervision (CLIP), 2021.
 - UPMC Food-101 (Wang et al., 2015) and MM-IMDb (Arevalo et al., 2017).
 

@@ -4,7 +4,7 @@ import types
 import torch
 
 from data import load_split, split_train_val, split_clients, apply_client_types, make_scenarios_by_shares
-from federated import train_client, average, average_by_modality
+from federated import train_client, average, average_by_modality, compress_state, _residual
 from utils import traffic_per_round
 from baselines import make_strategy
 from model import Net
@@ -98,3 +98,27 @@ for method in ("local", "fedmsplit", "mfedmc"):
     assert len(strategy.models) == len(few)
     assert not torch.equal(strategy.models[0].state_dict()["classifier.weight"], strategy.models[5].state_dict()["classifier.weight"]), "client models identical"
     print(f"9. {method}: {len(strategy.models)} client models, {strategy.bytes_per_round(2) / 1e6:.1f} MB per round")
+
+# 10. Compressed uploads: int8 error is below half a quantization step, top-k keeps the right share,
+#     error feedback stores exactly what was not sent, and the traffic shrinks.
+base = {k: v.clone() for k, v in model.state_dict().items()}
+trained = train_client(model, typed[0], args)
+for mode, extra in (("int8", {}), ("topk", {"topk": 0.1})):
+    _residual.clear()
+    a = types.SimpleNamespace(compress=mode, aggregation="fedavg", error_feedback=True, topk=0.1)
+    out = compress_state(base, trained, typed[0], 0, a)
+    delta = torch.cat([(trained[k] - base[k]).flatten() for k in base])
+    sent = torch.cat([(out[k] - base[k]).flatten() for k in base])
+    if mode == "int8":
+        assert (delta - sent).abs().max() <= max((trained[k] - base[k]).abs().max() for k in base) / 127 / 2 + 1e-7
+    else:
+        assert int((sent != 0).sum()) == -(-len(delta) * 1 // 10), int((sent != 0).sum())
+        assert torch.equal(sent[sent != 0], delta[sent != 0]), "top-k must send exact values"
+    kept = torch.cat([_residual[0][k].flatten() for k in base])
+    assert torch.allclose(kept, delta - sent, atol=1e-7), "residual is not delta - sent"
+    print(f"10. {mode}: update reconstructed, residual = what was not sent")
+dense = traffic_per_round(model, typed, 1.0)
+for mode in ("int8", "topk"):
+    small = traffic_per_round(model, typed, 1.0, compress=mode, topk=0.1)
+    assert small < dense
+    print(f"11. MB per round: dense {dense / 1e6:.1f}, {mode} {small / 1e6:.1f}")

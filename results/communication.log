@@ -1,0 +1,180 @@
+skip: feats8 0 250 --eta 0.7 --missing both
+skip: feats8 0 250 --shares 1,1,1
+skip: feats8 1 250 --eta 0.7 --missing both
+skip: feats8 1 250 --shares 1,1,1
+skip: feats8 2 250 --eta 0.7 --missing both
+skip: feats8 2 250 --shares 1,1,1
+skip: feats_imdb8 0 250 --eta 0.7 --missing both
+skip: feats_imdb8 0 250 --shares 1,1,1
+skip: feats_imdb8 1 250 --eta 0.7 --missing both
+skip: feats_imdb8 1 250 --shares 1,1,1
+skip: feats_imdb8 2 250 --eta 0.7 --missing both
+skip: feats_imdb8 2 250 --shares 1,1,1
+skip: feats8 0 250 --eta 0.7 --missing both --compress int8
+skip: feats8 0 250 --eta 0.7 --missing both --compress topk --topk 0.1
+skip: feats8 0 250 --eta 0.7 --missing both --compress topk --topk 0.01
+skip: feats8 0 250 --eta 0.7 --missing both --compress topk --topk 0.1 --error_feedback
+skip: feats8 0 250 --eta 0.7 --missing both --compress topk --topk 0.01 --error_feedback
+skip: feats8 0 250 --shares 1,1,1 --compress int8
+skip: feats8 0 250 --shares 1,1,1 --compress topk --topk 0.1
+skip: feats8 0 250 --shares 1,1,1 --compress topk --topk 0.01
+skip: feats8 0 250 --shares 1,1,1 --compress topk --topk 0.1 --error_feedback
+skip: feats8 0 250 --shares 1,1,1 --compress topk --topk 0.01 --error_feedback
+skip: feats8 1 250 --eta 0.7 --missing both --compress int8
+skip: feats8 1 250 --eta 0.7 --missing both --compress topk --topk 0.1
+skip: feats8 1 250 --eta 0.7 --missing both --compress topk --topk 0.01
+skip: feats8 1 250 --eta 0.7 --missing both --compress topk --topk 0.1 --error_feedback
+skip: feats8 1 250 --eta 0.7 --missing both --compress topk --topk 0.01 --error_feedback
+skip: feats8 1 250 --shares 1,1,1 --compress int8
+skip: feats8 1 250 --shares 1,1,1 --compress topk --topk 0.1
+skip: feats8 1 250 --shares 1,1,1 --compress topk --topk 0.01
+skip: feats8 1 250 --shares 1,1,1 --compress topk --topk 0.1 --error_feedback
+skip: feats8 1 250 --shares 1,1,1 --compress topk --topk 0.01 --error_feedback
+skip: feats8 2 250 --eta 0.7 --missing both --compress int8
+skip: feats8 2 250 --eta 0.7 --missing both --compress topk --topk 0.1
+skip: feats8 2 250 --eta 0.7 --missing both --compress topk --topk 0.01
+skip: feats8 2 250 --eta 0.7 --missing both --compress topk --topk 0.1 --error_feedback
+skip: feats8 2 250 --eta 0.7 --missing both --compress topk --topk 0.01 --error_feedback
+skip: feats8 2 250 --shares 1,1,1 --compress int8
+skip: feats8 2 250 --shares 1,1,1 --compress topk --topk 0.1
+skip: feats8 2 250 --shares 1,1,1 --compress topk --topk 0.01
+skip: feats8 2 250 --shares 1,1,1 --compress topk --topk 0.1 --error_feedback
+skip: feats8 2 250 --shares 1,1,1 --compress topk --topk 0.01 --error_feedback
+skip: feats_imdb8 0 250 --eta 0.7 --missing both --compress int8
+skip: feats_imdb8 0 250 --eta 0.7 --missing both --compress topk --topk 0.1
+skip: feats_imdb8 0 250 --eta 0.7 --missing both --compress topk --topk 0.01
+skip: feats_imdb8 0 250 --eta 0.7 --missing both --compress topk --topk 0.1 --error_feedback
+skip: feats_imdb8 0 250 --eta 0.7 --missing both --compress topk --topk 0.01 --error_feedback
+skip: feats_imdb8 0 250 --shares 1,1,1 --compress int8
+skip: feats_imdb8 0 250 --shares 1,1,1 --compress topk --topk 0.1
+skip: feats_imdb8 0 250 --shares 1,1,1 --compress topk --topk 0.01
+skip: feats_imdb8 0 250 --shares 1,1,1 --compress topk --topk 0.1 --error_feedback
+skip: feats_imdb8 0 250 --shares 1,1,1 --compress topk --topk 0.01 --error_feedback
+skip: feats_imdb8 1 250 --eta 0.7 --missing both --compress int8
+skip: feats_imdb8 1 250 --eta 0.7 --missing both --compress topk --topk 0.1
+skip: feats_imdb8 1 250 --eta 0.7 --missing both --compress topk --topk 0.01
+skip: feats_imdb8 1 250 --eta 0.7 --missing both --compress topk --topk 0.1 --error_feedback
+skip: feats_imdb8 1 250 --eta 0.7 --missing both --compress topk --topk 0.01 --error_feedback
+skip: feats_imdb8 1 250 --shares 1,1,1 --compress int8
+skip: feats_imdb8 1 250 --shares 1,1,1 --compress topk --topk 0.1
+skip: feats_imdb8 1 250 --shares 1,1,1 --compress topk --topk 0.01
+skip: feats_imdb8 1 250 --shares 1,1,1 --compress topk --topk 0.1 --error_feedback
+skip: feats_imdb8 1 250 --shares 1,1,1 --compress topk --topk 0.01 --error_feedback
+skip: feats_imdb8 2 250 --eta 0.7 --missing both --compress int8
+skip: feats_imdb8 2 250 --eta 0.7 --missing both --compress topk --topk 0.1
+skip: feats_imdb8 2 250 --eta 0.7 --missing both --compress topk --topk 0.01
+skip: feats_imdb8 2 250 --eta 0.7 --missing both --compress topk --topk 0.1 --error_feedback
+skip: feats_imdb8 2 250 --eta 0.7 --missing both --compress topk --topk 0.01 --error_feedback
+skip: feats_imdb8 2 250 --shares 1,1,1 --compress int8
+skip: feats_imdb8 2 250 --shares 1,1,1 --compress topk --topk 0.1
+skip: feats_imdb8 2 250 --shares 1,1,1 --compress topk --topk 0.01
+skip: feats_imdb8 2 250 --shares 1,1,1 --compress topk --topk 0.1 --error_feedback
+skip: feats_imdb8 2 250 --shares 1,1,1 --compress topk --topk 0.01 --error_feedback
+done: feats8 0 250 --shares 1,1,1 --aggregation aware
+done: feats8 0 250 --shares 1,1,1 --aggregation aware --compress int8
+done: feats8 0 250 --shares 1,1,1 --aggregation aware --compress topk --topk 0.1 --error_feedback
+done: feats8 0 125 --shares 1,1,1 --aggregation aware --compress int8 --local_epochs 2
+done: feats8 1 250 --shares 1,1,1 --aggregation aware
+done: feats8 1 250 --shares 1,1,1 --aggregation aware --compress int8
+done: feats8 1 250 --shares 1,1,1 --aggregation aware --compress topk --topk 0.1 --error_feedback
+done: feats8 1 125 --shares 1,1,1 --aggregation aware --compress int8 --local_epochs 2
+done: feats8 2 250 --shares 1,1,1 --aggregation aware
+done: feats8 2 250 --shares 1,1,1 --aggregation aware --compress int8
+done: feats8 2 250 --shares 1,1,1 --aggregation aware --compress topk --topk 0.1 --error_feedback
+done: feats8 2 125 --shares 1,1,1 --aggregation aware --compress int8 --local_epochs 2
+done: feats_imdb8 0 250 --shares 1,1,1 --aggregation aware
+done: feats_imdb8 0 250 --shares 1,1,1 --aggregation aware --compress int8
+done: feats_imdb8 0 250 --shares 1,1,1 --aggregation aware --compress topk --topk 0.1 --error_feedback
+done: feats_imdb8 0 125 --shares 1,1,1 --aggregation aware --compress int8 --local_epochs 2
+done: feats_imdb8 1 250 --shares 1,1,1 --aggregation aware
+done: feats_imdb8 1 250 --shares 1,1,1 --aggregation aware --compress int8
+done: feats_imdb8 1 250 --shares 1,1,1 --aggregation aware --compress topk --topk 0.1 --error_feedback
+done: feats_imdb8 1 125 --shares 1,1,1 --aggregation aware --compress int8 --local_epochs 2
+done: feats_imdb8 2 250 --shares 1,1,1 --aggregation aware
+done: feats_imdb8 2 250 --shares 1,1,1 --aggregation aware --compress int8
+done: feats_imdb8 2 250 --shares 1,1,1 --aggregation aware --compress topk --topk 0.1 --error_feedback
+done: feats_imdb8 2 125 --shares 1,1,1 --aggregation aware --compress int8 --local_epochs 2
+done: feats8 0 250 --eta 0.7 --missing both --participation 0.1
+done: feats8 0 250 --eta 0.7 --missing both --participation 0.2
+done: feats8 0 250 --eta 0.7 --missing both --participation 0.3
+done: feats8 0 250 --eta 0.7 --missing both --participation 0.5
+done: feats8 0 250 --shares 1,1,1 --participation 0.1
+done: feats8 0 250 --shares 1,1,1 --participation 0.2
+done: feats8 0 250 --shares 1,1,1 --participation 0.3
+done: feats8 0 250 --shares 1,1,1 --participation 0.5
+done: feats8 1 250 --eta 0.7 --missing both --participation 0.1
+done: feats8 1 250 --eta 0.7 --missing both --participation 0.2
+done: feats8 1 250 --eta 0.7 --missing both --participation 0.3
+done: feats8 1 250 --eta 0.7 --missing both --participation 0.5
+done: feats8 1 250 --shares 1,1,1 --participation 0.1
+done: feats8 1 250 --shares 1,1,1 --participation 0.2
+done: feats8 1 250 --shares 1,1,1 --participation 0.3
+done: feats8 1 250 --shares 1,1,1 --participation 0.5
+done: feats8 2 250 --eta 0.7 --missing both --participation 0.1
+done: feats8 2 250 --eta 0.7 --missing both --participation 0.2
+done: feats8 2 250 --eta 0.7 --missing both --participation 0.3
+done: feats8 2 250 --eta 0.7 --missing both --participation 0.5
+done: feats8 2 250 --shares 1,1,1 --participation 0.1
+done: feats8 2 250 --shares 1,1,1 --participation 0.2
+done: feats8 2 250 --shares 1,1,1 --participation 0.3
+done: feats8 2 250 --shares 1,1,1 --participation 0.5
+done: feats_imdb8 0 250 --eta 0.7 --missing both --participation 0.1
+done: feats_imdb8 0 250 --eta 0.7 --missing both --participation 0.2
+done: feats_imdb8 0 250 --eta 0.7 --missing both --participation 0.3
+done: feats_imdb8 0 250 --eta 0.7 --missing both --participation 0.5
+done: feats_imdb8 0 250 --shares 1,1,1 --participation 0.1
+done: feats_imdb8 0 250 --shares 1,1,1 --participation 0.2
+done: feats_imdb8 0 250 --shares 1,1,1 --participation 0.3
+done: feats_imdb8 0 250 --shares 1,1,1 --participation 0.5
+done: feats_imdb8 1 250 --eta 0.7 --missing both --participation 0.1
+done: feats_imdb8 1 250 --eta 0.7 --missing both --participation 0.2
+done: feats_imdb8 1 250 --eta 0.7 --missing both --participation 0.3
+done: feats_imdb8 1 250 --eta 0.7 --missing both --participation 0.5
+done: feats_imdb8 1 250 --shares 1,1,1 --participation 0.1
+done: feats_imdb8 1 250 --shares 1,1,1 --participation 0.2
+done: feats_imdb8 1 250 --shares 1,1,1 --participation 0.3
+done: feats_imdb8 1 250 --shares 1,1,1 --participation 0.5
+done: feats_imdb8 2 250 --eta 0.7 --missing both --participation 0.1
+done: feats_imdb8 2 250 --eta 0.7 --missing both --participation 0.2
+done: feats_imdb8 2 250 --eta 0.7 --missing both --participation 0.3
+done: feats_imdb8 2 250 --eta 0.7 --missing both --participation 0.5
+done: feats_imdb8 2 250 --shares 1,1,1 --participation 0.1
+done: feats_imdb8 2 250 --shares 1,1,1 --participation 0.2
+done: feats_imdb8 2 250 --shares 1,1,1 --participation 0.3
+done: feats_imdb8 2 250 --shares 1,1,1 --participation 0.5
+done: feats8 0 125 --eta 0.7 --missing both --local_epochs 2
+done: feats8 0 50 --eta 0.7 --missing both --local_epochs 5
+done: feats8 0 25 --eta 0.7 --missing both --local_epochs 10
+done: feats8 0 125 --shares 1,1,1 --local_epochs 2
+done: feats8 0 50 --shares 1,1,1 --local_epochs 5
+done: feats8 0 25 --shares 1,1,1 --local_epochs 10
+done: feats8 1 125 --eta 0.7 --missing both --local_epochs 2
+done: feats8 1 50 --eta 0.7 --missing both --local_epochs 5
+done: feats8 1 25 --eta 0.7 --missing both --local_epochs 10
+done: feats8 1 125 --shares 1,1,1 --local_epochs 2
+done: feats8 1 50 --shares 1,1,1 --local_epochs 5
+done: feats8 1 25 --shares 1,1,1 --local_epochs 10
+done: feats8 2 125 --eta 0.7 --missing both --local_epochs 2
+done: feats8 2 50 --eta 0.7 --missing both --local_epochs 5
+done: feats8 2 25 --eta 0.7 --missing both --local_epochs 10
+done: feats8 2 125 --shares 1,1,1 --local_epochs 2
+done: feats8 2 50 --shares 1,1,1 --local_epochs 5
+done: feats8 2 25 --shares 1,1,1 --local_epochs 10
+done: feats_imdb8 0 125 --eta 0.7 --missing both --local_epochs 2
+done: feats_imdb8 0 50 --eta 0.7 --missing both --local_epochs 5
+done: feats_imdb8 0 25 --eta 0.7 --missing both --local_epochs 10
+done: feats_imdb8 0 125 --shares 1,1,1 --local_epochs 2
+done: feats_imdb8 0 50 --shares 1,1,1 --local_epochs 5
+done: feats_imdb8 0 25 --shares 1,1,1 --local_epochs 10
+done: feats_imdb8 1 125 --eta 0.7 --missing both --local_epochs 2
+done: feats_imdb8 1 50 --eta 0.7 --missing both --local_epochs 5
+done: feats_imdb8 1 25 --eta 0.7 --missing both --local_epochs 10
+done: feats_imdb8 1 125 --shares 1,1,1 --local_epochs 2
+done: feats_imdb8 1 50 --shares 1,1,1 --local_epochs 5
+done: feats_imdb8 1 25 --shares 1,1,1 --local_epochs 10
+done: feats_imdb8 2 125 --eta 0.7 --missing both --local_epochs 2
+done: feats_imdb8 2 50 --eta 0.7 --missing both --local_epochs 5
+done: feats_imdb8 2 25 --eta 0.7 --missing both --local_epochs 10
+done: feats_imdb8 2 125 --shares 1,1,1 --local_epochs 2
+done: feats_imdb8 2 50 --shares 1,1,1 --local_epochs 5
+done: feats_imdb8 2 25 --shares 1,1,1 --local_epochs 10

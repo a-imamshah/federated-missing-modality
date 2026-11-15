@@ -1,5 +1,6 @@
 """Loss, metrics, temperature scaling and evaluation. Works for single-label (y = class index, shape [N])
 and multi-label (y = multi-hot floats, shape [N, C]); the mode is read from the shape of y."""
+import math
 import torch
 import torch.nn.functional as F
 
@@ -89,19 +90,26 @@ def bytes_per_round(model, num_clients):
     return sum(p.numel() for p in model.parameters()) * 4 * 2 * num_clients
 
 
-def traffic_per_round(model, clients, participation, partial_upload=False):
-    """Expected bytes per round (float32). Every participating client downloads the whole model. It uploads the
-    whole model, or with partial_upload only the parts it trains: a client without text does not send the text adapter."""
+def traffic_per_round(model, clients, participation, partial_upload=False, compress="none", topk=0.1):
+    """Expected bytes per round. Every participating client downloads the whole model (float32). Its upload is the whole
+    model, or with partial_upload only the parts it trains (a client without text does not send the text adapter).
+    Compressed uploads: int8 = 1 byte per weight + 4 bytes per tensor for the scale; topk = 4 bytes value + 4 bytes index
+    for the share topk of the weights."""
     k = max(1, round(participation * len(clients)))
-    sizes = {g: sum(p.numel() for n, p in model.named_parameters() if n.startswith(g))
-             for g in ("img_adapter.", "txt_adapter.")}
-    total = sum(p.numel() for p in model.parameters())
+    state = model.state_dict()
+    total = sum(v.numel() for v in state.values())
+
     def upload(c):
-        if not partial_upload:
-            return total
-        return total - (0 if c.has_img.any() else sizes["img_adapter."]) - (0 if c.has_txt.any() else sizes["txt_adapter."])
+        keys = [n for n in state if not (partial_upload and ((n.startswith("img_adapter.") and not c.has_img.any())
+                                                              or (n.startswith("txt_adapter.") and not c.has_txt.any())))]
+        n = sum(state[name].numel() for name in keys)
+        if compress == "int8":
+            return n + 4 * len(keys)
+        if compress == "topk":
+            return 8 * math.ceil(topk * n)
+        return 4 * n
     mean_upload = sum(upload(c) for c in clients) / len(clients)
-    return int(round((total + mean_upload) * 4 * k))
+    return int(round((4 * total + mean_upload) * k))
 
 
 def print_results(results):

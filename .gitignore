@@ -16,3 +16,4 @@ feats*/
 results/parity.jsonl
 results/.client_types_done
 results/.baselines_done
+results/.communication_done

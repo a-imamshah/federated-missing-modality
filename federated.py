@@ -1,5 +1,6 @@
 """Federated training: local training on each client and averaging on the server."""
 import copy
+import math
 import torch
 
 from utils import loss_fn
@@ -62,11 +63,56 @@ def average_by_modality(states, clients, global_state):
     return out
 
 
+_residual = {}   # error feedback: what each client could not send yet (one process runs one experiment)
+
+
+def uploaded_keys(state, client, partial):
+    """The weights a client uploads. With partial uploads a client without images (text) leaves out the image (text) adapter."""
+    skip = []
+    if partial and not client.has_img.any():
+        skip.append("img_adapter.")
+    if partial and not client.has_txt.any():
+        skip.append("txt_adapter.")
+    return [k for k in state if not any(k.startswith(p) for p in skip)]
+
+
+def compress_state(base, state, client, cid, args):
+    """What the server receives from a client when uploads are compressed: the global weights plus the compressed update
+    (update = trained weights - weights the client started from). int8: every tensor is rounded to 255 levels.
+    topk: only the largest args.topk share of all entries is sent. With args.error_feedback the part that was not
+    sent is added to the client's next update."""
+    keys = uploaded_keys(state, client, args.aggregation == "aware")
+    delta = {k: state[k] - base[k] for k in keys}
+    if args.error_feedback:
+        delta = {k: d + _residual.get(cid, {}).get(k, 0) for k, d in delta.items()}
+    if args.compress == "int8":
+        sent = {}
+        for k, d in delta.items():
+            scale = d.abs().max().clamp(min=1e-12) / 127
+            sent[k] = torch.round(d / scale).clamp(-127, 127) * scale
+    else:
+        flat = torch.cat([d.flatten() for d in delta.values()])
+        keep = flat.abs().topk(max(1, math.ceil(args.topk * flat.numel()))).indices
+        out = torch.zeros_like(flat)
+        out[keep] = flat[keep]
+        sent, pos = {}, 0
+        for k, d in delta.items():
+            sent[k] = out[pos:pos + d.numel()].view_as(d)
+            pos += d.numel()
+    if args.error_feedback:
+        _residual[cid] = {k: delta[k] - sent[k] for k in delta}
+    return {**state, **{k: base[k] + sent[k] for k in keys}}
+
+
 def run_round(global_model, clients, args):
     """One round: a random fraction (args.participation) of the clients trains, then the server averages."""
     k = max(1, round(args.participation * len(clients)))
-    chosen = [clients[i] for i in torch.randperm(len(clients))[:k]]
+    ids = torch.randperm(len(clients))[:k].tolist()
+    chosen = [clients[i] for i in ids]
     states = [train_client(global_model, c, args) for c in chosen]
+    if getattr(args, "compress", "none") != "none":
+        base = {n: v.clone() for n, v in global_model.state_dict().items()}
+        states = [compress_state(base, st, c, i, args) for st, c, i in zip(states, chosen, ids)]
     if getattr(args, "aggregation", "fedavg") == "aware":
         global_model.load_state_dict(average_by_modality(states, chosen, global_model.state_dict()))
     else:
