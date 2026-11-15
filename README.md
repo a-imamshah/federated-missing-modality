@@ -9,6 +9,10 @@ MM-IMDb subsets, 20 clients, 70% of training samples missing one modality. The b
 different (see [Differences from Fed-PRIME](#differences-from-fed-prime)), so the results are comparable in setup, not a
 like-for-like replication.
 
+Training runs in a small sequential simulator written for this project. To confirm that the simulator is correct, the
+same experiments were repeated on the [Flower](https://flower.ai) federated learning framework
+(see [Flower version](#flower-version)); the two give equivalent results.
+
 ## Method
 
 - **Features.** Frozen CLIP image and text encoders. Features are L2-normalized and stored as float16 `.npy` files.
@@ -36,17 +40,31 @@ summarize.py               average results over seeds into a table
 check_simulator.py         sanity checks: clients share no data or weights, FedAvg is a weighted mean
 run_paper_experiments.sh   experiments from the Fed-PRIME paper
 run_client_experiments.sh  federated learning vs number of clients
+flower/                    the same experiments on Flower, to confirm the simulator is equivalent (own virtual environment, see below)
 kaggle/                    scripts that extract the CLIP features (run on Kaggle, GPU + Internet)
 results/                   finished runs: paper.jsonl, clients.jsonl (one JSON line per run)
 ```
 
 ## Installation
 
+The simulator and the Flower version use separate virtual environments, so Flower's dependencies (it brings Ray)
+never touch the simulator.
+
 ```
+# simulator (repository root)
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+# Flower version
+cd flower
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
+
+If `pip install` fails for Flower because Ray does not support your Python version yet, create the Flower
+environment with an older Python (for example `python3.12 -m venv .venv`).
 
 ## Data
 
@@ -104,9 +122,61 @@ bash run_client_experiments.sh                          # then: python summarize
 | `scale` | 100 clients, 10% to 50% participation | not run |
 | modality dropout | `--modality_dropout 0.3` against plain zero-masking | not run |
 | 23-genre multi-label | `--feats feats_imdb23` | implemented, not run on real features |
+| Flower version | `table1` on Flower, to check the simulator | done |
 
 `results/paper.jsonl` holds 33 runs and `results/clients.jsonl` 84 runs. `summarize.py` reports F1-macro for MM-IMDb and
-F1-micro for Food-101, as the paper does.
+F1-micro for Food-101, as the paper does, and accepts several result files.
+
+## Flower version
+
+**Purpose.** The Flower version exists to check that the simulator is correct, not as a second implementation to
+maintain. If a hand-written federated loop had a bug (clients sharing data, a wrong aggregation), a mature framework
+would give different numbers. Running the same experiments on Flower's FedAvg and getting the same results shows that
+the simulator is equivalent. The simulator remains the main code because it is about 8x faster (0.14 s against 1.1 s per
+round with 20 clients) and needs no Ray.
+
+**Result.** Table 1 (Food-101 and MM-IMDb, three training patterns), 3 seeds, 20 clients, 250 rounds: every
+difference between Flower and the simulator is smaller than the seed-to-seed standard deviation.
+
+| Setting | Scenario | Simulator | Flower |
+|---|---|---|---|
+| Food-101, both missing, eta 0.7 | full / missing | 98.2 / 92.8 | 98.0 / 92.8 |
+| Food-101, image missing, eta 0.7 | full / missing | 97.9 / 93.5 | 98.0 / 93.3 |
+| Food-101, text missing, eta 0.7 | full / missing | 98.2 / 91.9 | 98.2 / 91.9 |
+| MM-IMDb, both missing, eta 0.7 | full / missing | 68.4 / 59.0 | 68.0 / 58.7 |
+| MM-IMDb, image missing, eta 0.7 | full / missing | 61.4 / 59.9 | 62.9 / 60.4 |
+| MM-IMDb, text missing, eta 0.7 | full / missing | 64.7 / 55.1 | 63.7 / 54.5 |
+
+Food-101 is accuracy (%), MM-IMDb is F1-macro (%). The largest gap over all scenarios is 0.4 points on Food-101 and 1.5
+on MM-IMDb (standard deviation about 2). The communication cost per round is identical.
+
+**Usage.** `flower/` runs the same experiments on Flower (simulation engine, `flwr run`). It reuses `data.py`,
+`model.py`, `federated.py` and `utils.py` from the repository root, so only the orchestration differs: Flower's FedAvg
+replaces `run_round` and `average`, and the global model is scored on the server with the same evaluation code. Each run
+appends a line in the same format to `results/flower.jsonl`.
+
+```
+cd flower && source .venv/bin/activate
+bash run_experiments.sh table1|eta|noniid|scale|clients
+SEEDS="0" R=20 bash run_experiments.sh table1          # small test run first
+```
+
+One run by hand (strings in the run config need double quotes; the number of clients is a federation setting):
+
+```
+flwr run . --stream --federation-config "num-supernodes=20 client-resources-num-cpus=1" \
+  --run-config "feats=\"feats8\" missing=\"both\" eta=0.7 repo-root=\"$(cd .. && pwd)\""
+```
+
+Compare both frameworks in one table (rows of the same setting sit next to each other; the last setting column says
+`simulator` or `flower`):
+
+```
+python summarize.py results/paper.jsonl results/clients.jsonl results/flower.jsonl
+```
+
+Flower records two traffic figures: `bytes_per_round` (the same formula as the simulator) and
+`payload_bytes_per_round` (the serialized weights actually exchanged; protocol overhead is not included).
 
 ## Results
 

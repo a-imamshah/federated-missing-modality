@@ -1,6 +1,7 @@
-"""Average a results file over seeds. One row per setting, one column per test scenario (mean +- std, in %).
+"""Average result files over seeds. One row per setting, one column per test scenario (mean +- std, in %).
 Shows F1-macro for MM-IMDb and F1-micro (= accuracy) for Food-101, like the paper.
-Usage: python summarize.py results/paper.jsonl   (or results/clients.jsonl)
+Usage: python summarize.py results/paper.jsonl results/clients.jsonl results/flower.jsonl
+Runs from the simulator and from Flower share a table; the last column of the setting says which one produced a row.
 For runs that logged history: round at which the "missing" scenario first reaches 95% of its final score,
 and the total traffic (MB) up to that round."""
 import json
@@ -8,16 +9,21 @@ import sys
 from collections import defaultdict
 import numpy as np
 
-SETTING = ["feats", "missing", "eta", "clients", "participation", "alpha", "modality_dropout", "rounds"]
+SETTING = ["feats", "missing", "eta", "clients", "participation", "alpha", "modality_dropout", "rounds", "framework"]
 SCENARIOS = ["full", "image_only", "text_only", "missing", "miss_both"]
 
-groups = defaultdict(list)
-for line in open(sys.argv[1] if len(sys.argv) > 1 else "results/paper.jsonl"):
-    run = json.loads(line)
-    if "f1_micro" not in run["results"]["full"]:      # skip old runs that stored "accuracy"
-        continue
-    key = tuple(run["args"].get(k) for k in SETTING)
-    groups[key].append(run)
+groups, seen = defaultdict(list), set()
+for path in sys.argv[1:] or ["results/paper.jsonl"]:
+    for line in open(path):
+        run = json.loads(line)
+        if "f1_micro" not in run["results"]["full"]:      # skip old runs that stored "accuracy"
+            continue
+        args = {**run["args"], "framework": run["args"].get("framework", "simulator")}
+        key = tuple(args.get(k) for k in SETTING)
+        if (key, args["seed"]) in seen:                    # the same run listed in two files counts once
+            continue
+        seen.add((key, args["seed"]))
+        groups[key].append(run)
 
 
 def round_to_95(run, metric):
